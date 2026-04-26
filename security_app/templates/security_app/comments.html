@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <title>Түсініктемелер — CSRF & XSS тәжірибесі</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; max-width: 750px; margin: 2rem auto; background: #f5f7fa; color: #333; }
+        h1 { color: #1a73e8; }
+        h2 { color: #444; font-size: 1.1rem; margin-top: 2rem; }
+
+        .form-input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px;
+                      font-size: 1rem; box-sizing: border-box; margin-top: 4px; }
+        .form-input:focus { border-color: #1a73e8; outline: none; }
+        label { font-weight: 600; font-size: .9rem; }
+        .form-group { margin-bottom: 1rem; }
+        .btn { background: #1a73e8; color: #fff; border: none; padding: 10px 26px;
+               border-radius: 6px; cursor: pointer; font-size: 1rem; }
+        .btn:hover { background: #1558b0; }
+
+        /* Қауіпсіздік баннер */
+        .csrf-info {
+            background: #e8f5e9; border-left: 4px solid #43a047;
+            padding: 10px 14px; border-radius: 4px; font-size: .9rem;
+            margin-bottom: 1.5rem;
+        }
+        .xss-info {
+            background: #fff8e1; border-left: 4px solid #ffa000;
+            padding: 10px 14px; border-radius: 4px; font-size: .9rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Түсініктемелер тізімі */
+        .comment-card {
+            background: #fff; border: 1px solid #e0e0e0; border-radius: 8px;
+            padding: 12px 16px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+        }
+        .comment-author { font-weight: 700; color: #1a73e8; }
+        .comment-date { font-size: .8rem; color: #999; margin-left: 8px; }
+        .comment-body { margin-top: 6px; }
+        .no-comments { color: #999; font-style: italic; }
+
+        /* CSRF token визуализация */
+        .token-box {
+            background: #f3f4f6; border: 1px dashed #ccc; border-radius: 4px;
+            padding: 6px 10px; font-family: monospace; font-size: .8rem;
+            word-break: break-all; color: #555; margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<h1>🔐 CSRF & XSS Қорғанысы</h1>
+<div class="csrf-info">
+    <strong>✅ CSRF қорғанысы ҚОСУЛЫ:</strong> Форма ішінде <code>{% templatetag openblock %} csrf_token {% templatetag closeblock %}</code> тегі бар.
+    Django жасырын өрістегі токенді тексереді. Токенсіз жіберілген сұраныс — <strong>403 Forbidden</strong>.
+</div>
+
+<div class="xss-info">
+    <strong>⚠️ XSS тәжірибесі:</strong> Мазмұн өрісіне
+    <code>&lt;script&gt;alert('XSS')&lt;/script&gt;</code> жазып жіберіп көріңіз.
+    Django шаблон тегтерін автоматты экранизациялайды — скрипт іске аспайды.
+</div>
+
+<h2>Жаңа түсініктеме жазу</h2>
+<form method="post">
+    {% csrf_token %} 
+
+    <details style="margin-bottom:1rem;">
+        <summary style="cursor:pointer; font-size:.85rem; color:#555;">
+            🔍 Жасырын CSRF токенін көру (input[type=hidden])
+        </summary>
+        <div class="token-box">
+            name="csrfmiddlewaretoken" value="{{ csrf_token }}"
+        </div>
+    </details>
+
+    {% for field in form %}
+        <div class="form-group">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.errors %}
+                <p style="color:#dc3545; font-size:.85rem;">{{ field.errors.0 }}</p>
+            {% endif %}
+        </div>
+    {% endfor %}
+
+    <button type="submit" class="btn">Жіберу</button>
+</form>
+
+<h2>Түсініктемелер тізімі (XSS нәтижесін мұнда бақылаңыз)</h2>
+{% if comments %}
+    {% for comment in comments %}
+        <div class="comment-card">
+            <span class="comment-author">{{ comment.author }}</span>
+            <span class="comment-date">{{ comment.created_at|date:"d.m.Y H:i" }}</span>
+            {#
+                {{ comment.content }} — Django мұны автоматты экранизациялайды.
+                Яғни <script>...</script> жай мәтін ретінде шығарылады, іске аспайды.
+
+                Егер экранизацияны өшіргіңіз келсе (ҚАУІПТІ):
+                {{ comment.content|safe }}   ← бұны ешқашан қолданбаңыз!
+            #}
+            <p class="comment-body">{{ comment.content }}</p>
+        </div>
+    {% endfor %}
+{% else %}
+    <p class="no-comments">Әлі түсініктеме жоқ. Алғашқы болыңыз!</p>
+{% endif %}
+
+<hr style="margin-top:2rem;">
+<a href="{% url 'no_csrf' %}" style="color:#dc3545; font-size:.9rem;">
+    ⚠️ CSRF жоқ форма тәжірибесіне өту →
+</a>
+
+</body>
+</html>
